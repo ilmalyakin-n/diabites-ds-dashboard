@@ -351,7 +351,8 @@ def sidebar_brand(active_page: str):
 
     pages = [
         ("📊", "Overview", "app.py"),
-        ("🔍", "Nutrition Analysis", "pages/2_Nutrition_Analysis.py"),
+        ("�", "OCR Insights", "pages/1_OCR_Insights.py"),
+        ("📈", "Klasifikasi Analysis", "pages/2_Klasifikasi_Analysis.py"),
         ("🎯", "Recommendation Simulator", "pages/3_Recommendation_Simulator.py"),
     ]
 
@@ -383,7 +384,8 @@ def sidebar_dataset_notes():
         <div class="sidebar-panel" style="padding:0.65rem 0.85rem;">
             <span style="font-size:0.85rem;color:#374151 !important;">
             📁 nutrition_dataset.csv<br>
-            📁 yolo_dataset_quality.csv
+            📁 ocr_dataset_quality.csv<br>
+            📁 ocr_croping_dataset/
             </span>
         </div>
         """,

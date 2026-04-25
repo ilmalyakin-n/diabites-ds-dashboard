@@ -3,7 +3,7 @@ import streamlit as st
 
 from utils.charts import RECOMMENDATION_COLORS, bar_chart, heatmap_from_crosstab, histogram_chart
 from utils.common import value_counts_frame
-from utils.load_data import load_nutrition_data, load_yolo_quality_data
+from utils.load_data import load_nutrition_data, load_ocr_quality_data
 from utils.nutrition import (
     PROFILE_OPTIONS,
     diabetes_category_risk,
@@ -12,6 +12,12 @@ from utils.nutrition import (
     profile_sensitivity_insight,
     profile_sensitivity_table,
     profile_status_distribution,
+)
+from utils.rfm_analysis import (
+    category_distribution_rfm,
+    segment_distribution_summary,
+    product_frequency_analysis,
+    recommendation_rate_by_product,
 )
 from utils.ui import (
     chart_subtitle,
@@ -47,18 +53,18 @@ if raw_nutrition_data.empty:
 
 nutrition_data = prepare_nutrition_data(raw_nutrition_data)
 
-# Load YOLO quality data
-yolo_raw = load_yolo_quality_data()
-yolo_data = pd.DataFrame()
-if not yolo_raw.empty:
-    yolo_data = yolo_raw.copy()
+# Load OCR quality data
+ocr_raw = load_ocr_quality_data()
+ocr_data = pd.DataFrame()
+if not ocr_raw.empty:
+    ocr_data = ocr_raw.copy()
     # Derive quality_label from quality column
-    if "quality" in yolo_data.columns:
+    if "quality" in ocr_data.columns:
         quality_mapping = {"clear": "Good", "blur": "Poor", "glare": "Poor", "overlap": "Medium"}
-        yolo_data["quality_label"] = yolo_data["quality"].map(quality_mapping).fillna("Medium")
+        ocr_data["quality_label"] = ocr_data["quality"].map(quality_mapping).fillna("Medium")
     # Derive nutrient_type from file_name
-    if "file_name" in yolo_data.columns:
-        yolo_data["nutrient_type"] = yolo_data["file_name"].str.extract(r"^([a-zA-Z_]+)_\d")[0]
+    if "file_name" in ocr_data.columns:
+        ocr_data["nutrient_type"] = ocr_data["file_name"].str.extract(r"^([a-zA-Z_]+)_\d")[0]
 
 # Dataset validation (collapsible)
 with st.expander("📋 Validasi Dataset", expanded=False):
@@ -68,10 +74,10 @@ with st.expander("📋 Validasi Dataset", expanded=False):
         st.code(", ".join(raw_nutrition_data.columns.tolist()))
         st.caption(f"{len(raw_nutrition_data):,} baris")
     with validation_columns[1]:
-        st.markdown("**yolo_dataset_quality.csv**")
-        if not yolo_raw.empty:
-            st.code(", ".join(yolo_raw.columns.tolist()))
-            st.caption(f"{len(yolo_raw):,} baris")
+        st.markdown("**ocr_dataset_quality.csv**")
+        if not ocr_raw.empty:
+            st.code(", ".join(ocr_raw.columns.tolist()))
+            st.caption(f"{len(ocr_raw):,} baris")
         else:
             st.warning("Dataset tidak tersedia")
 
@@ -114,15 +120,15 @@ question_tabs = st.tabs(
     ]
 )
 
-# --- Tab 1: Kualitas Foto OCR (from yolo_dataset_quality.csv) ---
+# --- Tab 1: Kualitas Foto OCR (from ocr_dataset_quality.csv) ---
 with question_tabs[0]:
-    if yolo_data.empty:
-        st.warning("Dataset yolo_dataset_quality.csv kosong atau tidak ditemukan.")
-    elif "quality_label" not in yolo_data.columns:
-        st.info("Kolom 'quality' tidak ditemukan di yolo_dataset_quality.csv sehingga analisis kualitas foto tidak tersedia.")
+    if ocr_data.empty:
+        st.warning("Dataset ocr_dataset_quality.csv kosong atau tidak ditemukan.")
+    elif "quality_label" not in ocr_data.columns:
+        st.info("Kolom 'quality' tidak ditemukan di ocr_dataset_quality.csv sehingga analisis kualitas foto tidak tersedia.")
     else:
-        total_images = len(yolo_data)
-        quality_vc = yolo_data["quality_label"].value_counts()
+        total_images = len(ocr_data)
+        quality_vc = ocr_data["quality_label"].value_counts()
         summary_parts = []
         for label in ["Good", "Medium", "Poor"]:
             if label in quality_vc.index:
@@ -131,8 +137,8 @@ with question_tabs[0]:
                 summary_parts.append(f"{label} {count} gambar ({pct:.0f}%)")
         insight_box(f"Dari {total_images} gambar yang dianalisis: {', '.join(summary_parts)}.")
 
-        if "quality" in yolo_data.columns:
-            problem_data = yolo_data[yolo_data["quality"] != "clear"]["quality"].value_counts()
+        if "quality" in ocr_data.columns:
+            problem_data = ocr_data[ocr_data["quality"] != "clear"]["quality"].value_counts()
             if len(problem_data) > 0:
                 problem_parts = [f"{k} ({v} gambar)" for k, v in problem_data.items()]
                 st.markdown(f"**Masalah yang ditemukan:** {', '.join(problem_parts)}")
@@ -283,20 +289,20 @@ st.divider()
 
 
 # ────────────────────────────────────────────────────────────
-# OCR Quality Analysis  (from yolo_dataset_quality.csv)
+# OCR Quality Analysis  (from ocr_dataset_quality.csv)
 # ────────────────────────────────────────────────────────────
 section_title("Analisis Kualitas Foto OCR")
-st.caption("Sumber data: yolo_dataset_quality.csv")
+st.caption("Sumber data: ocr_dataset_quality.csv")
 
-if yolo_data.empty:
-    st.warning("Dataset yolo_dataset_quality.csv tidak tersedia atau kosong.")
+if ocr_data.empty:
+    st.warning("Dataset ocr_dataset_quality.csv tidak tersedia atau kosong.")
 else:
     # ── Row 1: Quality distribution + Photo problems ──
     ocr_left, ocr_right = st.columns(2)
 
     with ocr_left:
-        if "quality_label" in yolo_data.columns:
-            quality_counts = yolo_data["quality_label"].value_counts().reset_index()
+        if "quality_label" in ocr_data.columns:
+            quality_counts = ocr_data["quality_label"].value_counts().reset_index()
             quality_counts.columns = ["quality_label", "jumlah"]
             sort_order = {"Good": 0, "Medium": 1, "Poor": 2}
             quality_counts["sort_order"] = quality_counts["quality_label"].map(sort_order)
@@ -319,8 +325,8 @@ else:
             st.info("Visualisasi ini tidak tersedia karena kolom 'quality' belum ada di dataset.")
 
     with ocr_right:
-        if "quality" in yolo_data.columns:
-            problems = yolo_data[yolo_data["quality"] != "clear"]
+        if "quality" in ocr_data.columns:
+            problems = ocr_data[ocr_data["quality"] != "clear"]
             if not problems.empty:
                 problem_counts = problems["quality"].value_counts().reset_index()
                 problem_counts.columns = ["masalah", "jumlah"]
@@ -343,11 +349,11 @@ else:
             st.info("Visualisasi ini tidak tersedia karena kolom 'quality' belum ada di dataset.")
 
     # ── Row 2: Heatmap nutrient_type vs quality_label ──
-    has_nutrient_type = "nutrient_type" in yolo_data.columns
-    has_quality_label = "quality_label" in yolo_data.columns
+    has_nutrient_type = "nutrient_type" in ocr_data.columns
+    has_quality_label = "quality_label" in ocr_data.columns
 
     if has_nutrient_type and has_quality_label:
-        crosstab = pd.crosstab(yolo_data["nutrient_type"], yolo_data["quality_label"])
+        crosstab = pd.crosstab(ocr_data["nutrient_type"], ocr_data["quality_label"])
         column_order = [c for c in ["Good", "Medium", "Poor"] if c in crosstab.columns]
         crosstab = crosstab[column_order]
         st.plotly_chart(
@@ -368,23 +374,23 @@ else:
     section_title("Insight Otomatis")
     generated_insights = []
 
-    if "quality_label" in yolo_data.columns:
-        dominant_vc = yolo_data["quality_label"].value_counts()
+    if "quality_label" in ocr_data.columns:
+        dominant_vc = ocr_data["quality_label"].value_counts()
         dominant_label = dominant_vc.index[0]
-        dominant_pct = dominant_vc.values[0] / len(yolo_data) * 100
+        dominant_pct = dominant_vc.values[0] / len(ocr_data) * 100
         generated_insights.append(
             f"Sebagian besar gambar termasuk kategori {dominant_label} ({dominant_pct:.0f}%)."
         )
 
-    if "quality" in yolo_data.columns:
-        problem_vc = yolo_data[yolo_data["quality"] != "clear"]["quality"].value_counts()
+    if "quality" in ocr_data.columns:
+        problem_vc = ocr_data[ocr_data["quality"] != "clear"]["quality"].value_counts()
         if len(problem_vc) > 0:
             top_problems = problem_vc.head(2)
             problem_text = " dan ".join([f"{k} ({v} gambar)" for k, v in top_problems.items()])
             generated_insights.append(f"Masalah yang paling sering terjadi adalah {problem_text}.")
 
     if has_nutrient_type and has_quality_label:
-        poor_images = yolo_data[yolo_data["quality_label"] == "Poor"]
+        poor_images = ocr_data[ocr_data["quality_label"] == "Poor"]
         if not poor_images.empty:
             poor_by_nutrient = poor_images["nutrient_type"].value_counts()
             if poor_by_nutrient.max() > poor_by_nutrient.min():
@@ -403,6 +409,58 @@ else:
             insight_box(insight_text)
     else:
         st.info("Tidak ada insight yang dapat dihasilkan dari data saat ini.")
+
+st.divider()
+
+
+# ────────────────────────────────────────────────────────────
+# RFM Analysis - Product Segmentation & Quality Insights
+# ────────────────────────────────────────────────────────────
+section_title("RFM Analysis - Product Segmentation")
+
+rfm_stats = segment_distribution_summary(nutrition_data)
+
+rfm_metric_columns = st.columns(4)
+with rfm_metric_columns[0]:
+    metric_card("Total Produk Unik", f"{rfm_stats['total_products']:,}", "Frequency measure")
+with rfm_metric_columns[1]:
+    metric_card("High Quality", f"{rfm_stats['high_quality_count']:,}", f"{rfm_stats['high_quality_pct']}% dari total")
+with rfm_metric_columns[2]:
+    metric_card("Rata-rata Frekuensi", f"{rfm_stats['avg_frequency']}", "Records per product")
+with rfm_metric_columns[3]:
+    metric_card("Frekuensi Maksimal", f"{rfm_stats['max_frequency']}", "Produk paling sering muncul")
+
+st.divider()
+
+rfm_col1, rfm_col2 = st.columns(2)
+
+with rfm_col1:
+    st.plotly_chart(
+        product_frequency_analysis(nutrition_data),
+        use_container_width=True,
+    )
+
+with rfm_col2:
+    st.plotly_chart(
+        recommendation_rate_by_product(nutrition_data),
+        use_container_width=True,
+    )
+
+st.divider()
+
+section_title("Kategori vs Recommendation Rate")
+st.plotly_chart(
+    category_distribution_rfm(nutrition_data),
+    use_container_width=True,
+)
+
+st.markdown("""
+**RFM Analysis Insight:**
+- **Frequency**: Top products muncul lebih sering di berbagai profil user
+- **Recommendation Rate**: Proxy untuk quality - produk dengan rate tinggi = quality baik
+- **Category Analysis**: Kategori tertentu memiliki recommendation rate lebih tinggi
+- Gunakan analisis ini untuk identifying premium vs problematic products
+""")
 
 st.divider()
 

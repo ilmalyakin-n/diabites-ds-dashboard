@@ -28,6 +28,6 @@ def load_nutrition_data() -> pd.DataFrame:
     return _load_csv("nutrition_dataset.csv")
 
 
-def load_yolo_quality_data() -> pd.DataFrame:
-    """Load the YOLO dataset quality CSV for OCR photo quality analysis."""
-    return _load_csv("yolo_dataset_quality.csv")
+def load_ocr_quality_data() -> pd.DataFrame:
+    """Load the OCR dataset quality CSV for analyzing photo quality labels and text extraction."""
+    return _load_csv("ocr_dataset_quality.csv")
