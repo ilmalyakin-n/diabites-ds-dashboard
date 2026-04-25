@@ -2,20 +2,22 @@
 
 Dashboard interaktif berbasis **Streamlit** untuk menganalisis kandungan nutrisi produk makanan Indonesia dan memberikan rekomendasi berdasarkan 7 profil medis (diabetes tipe 1 & 2, hipertensi, diet, atlet, anak, umum).
 
-> Dashboard ini juga menganalisis kualitas foto OCR dari dataset YOLO untuk mengevaluasi seberapa baik informasi nutrisi dapat diekstrak dari foto kemasan produk.
+> Dashboard ini mengintegrasikan 3 analisis utama: OCR photo quality, nutrition dataset distribution, dan product recommendation berbasis RFM segmentation dengan professional data analyst approach.
 
----
+## Live Dashboard klik di bawah ini:
+
+## [![Streamlit App](https://img.shields.io/badge/Streamlit-Live_Dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://diabites.streamlit.app/)
 
 ## ✨ Fitur Utama
 
-| Fitur | Deskripsi |
-|-------|-----------|
-| **Overview Dashboard** | Ringkasan total produk, kategori, profil medis, dan jawaban cepat pertanyaan riset |
-| **Nutrition Analysis** | Filter produk berdasarkan profil & kategori, scatter plot, boxplot, dan analisis risiko diabetes |
-| **Recommendation Simulator** | Simulasi profil pengguna untuk menemukan produk paling sesuai kebutuhan nutrisi |
-| **Analisis Kualitas Foto OCR** | Visualisasi kualitas gambar dari `yolo_dataset_quality.csv` (distribusi kualitas, masalah foto, heatmap nutrisi vs kualitas) |
-| **Insight Otomatis** | Insight berbasis data yang dihasilkan secara otomatis dari dataset |
-| **Validasi Dataset** | Pengecekan kolom otomatis — dashboard tetap berjalan meskipun ada kolom yang hilang |
+| Fitur                          | Deskripsi                                                                                                                    |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **📊 Overview Dashboard**      | Ringkasan total produk, kategori, profil medis, jawaban cepat riset, dan **RFM Analysis** (product segmentation)              |
+| **🔬 OCR Insights**            | Analisis mendalam kualitas foto OCR: distribusi kualitas, text extraction length, kategori nutrisi, character vocabulary      |
+| **📈 Klasifikasi Analysis**    | Sebaran dataset nutrisi hasil augmentasi: sugar/sodium distribution, nutrient correlation, recommendation by diabetes type    |
+| **🎯 Recommendation Simulator**| Simulasi profil pengguna (usia, gender, kondisi, target) untuk menemukan produk paling sesuai kebutuhan nutrisi              |
+| **RFM Analysis**               | Product frequency ranking, recommendation rate (quality proxy), segment distribution (High/Moderate/Low quality)              |
+| **EDA Visualizations**         | Visualisasi professional dari EDA notebooks: histograms, heatmaps, box plots, bar charts (tanpa overcomplexity)             |
 
 ---
 
@@ -23,21 +25,30 @@ Dashboard interaktif berbasis **Streamlit** untuk menganalisis kandungan nutrisi
 
 ```
 diabites-ds-dashboard/
-├── app.py                              # Halaman utama (Overview)
+├── app.py                              # Home page - Overview & RFM Analysis
 ├── pages/
-│   ├── 2_Nutrition_Analysis.py         # Halaman Nutrition Analysis
-│   └── 3_Recommendation_Simulator.py   # Halaman Recommendation Simulator
+│   ├── 1_OCR_Insights.py               # OCR data quality analysis
+│   ├── 2_Klasifikasi_Analysis.py       # Nutrition dataset distribution analysis
+│   └── 3_Recommendation_Simulator.py   # Interactive product recommendation testing
 ├── utils/
-│   ├── charts.py                       # Fungsi chart Plotly (bar, histogram, heatmap, dll)
-│   ├── common.py                       # Fungsi utilitas umum
-│   ├── load_data.py                    # Loader dataset dengan caching
-│   ├── nutrition.py                    # Logika scoring, profil medis, dan analisis nutrisi
-│   └── ui.py                          # Komponen UI, CSS, sidebar, hero, cards
+│   ├── charts.py                       # Plotly chart functions (bar, histogram, heatmap)
+│   ├── common.py                       # Utility functions
+│   ├── load_data.py                    # Dataset loaders with caching (@st.cache_data)
+│   ├── nutrition.py                    # Scoring logic, medical profiles, nutrition analysis
+│   ├── ui.py                           # UI components, CSS injection, sidebar navigation
+│   ├── eda_visualizations.py           # Reusable EDA charts from notebooks (NEW)
+│   └── rfm_analysis.py                 # RFM analysis functions for product segmentation (NEW)
 ├── data/
-│   ├── nutrition_dataset.csv           # Dataset nutrisi produk (11.452 baris)
-│   └── yolo_dataset_quality.csv        # Dataset kualitas foto OCR (420 baris)
+│   ├── nutrition_dataset.csv           # Nutrition data - augmented 7 profiles (11,452 rows)
+│   ├── ocr_dataset_quality.csv         # OCR quality labels from image dataset (420 rows)
+│   └── ocr_croping_dataset/            # Folder of cropped images for OCR training
+├── EDA_code/
+│   ├── EDA_data_klasifikasi.ipynb      # EDA analysis of nutrition_dataset.csv
+│   ├── EDA_dataocr_croping.ipynb       # Image distribution analysis of OCR dataset
+│   ├── EDA_labeldata_ocr.ipynb         # Quality analysis of ocr_dataset_quality.csv
+│   └── Gathering, Assessing, Cleaning_dataKlasifikasi.ipynb  # Data pipeline & cleaning
 ├── .streamlit/
-│   └── config.toml                     # Konfigurasi Streamlit
+│   └── config.toml                     # Streamlit configuration
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -96,55 +107,96 @@ Dashboard akan terbuka di `http://localhost:8501`.
 
 Dataset utama berisi informasi nutrisi produk makanan Indonesia.
 
-| Kolom | Deskripsi |
-|-------|-----------|
-| `product_name` | Nama produk |
-| `sugar_g` | Kandungan gula (gram) |
-| `carbs_g` | Kandungan karbohidrat (gram) |
-| `calories` | Kalori |
-| `sodium_mg` | Kandungan sodium (mg) |
-| `fat_g` | Kandungan lemak (gram) |
-| `age_group` | Kelompok usia |
-| `bmi_category` | Kategori BMI |
-| `diabetes_type` | Tipe diabetes (0, 1, 2) |
-| `label` | Label rekomendasi asli |
+| Kolom           | Deskripsi                                  |
+| --------------- | ------------------------------------------ |
+| `product_name`  | Nama produk                                |
+| `sugar_g`       | Kandungan gula (gram)                      |
+| `carbs_g`       | Kandungan karbohidrat (gram)               |
+| `calories`      | Kalori (kkal)                              |
+| `sodium_mg`     | Kandungan sodium (mg)                      |
+| `fat_g`         | Kandungan lemak (gram)                     |
+| `age_group`     | Kelompok usia (child/adult/senior)         |
+| `bmi_category`  | Kategori BMI (underweight/normal/overweight/obese) |
+| `diabetes_type` | Tipe diabetes (0=normal, 1=type1, 2=type2) |
+| `label`         | Rekomendasi (Recommended/Caution/Not Recommended) |
 
-### yolo_dataset_quality.csv
+---
 
-Dataset kualitas foto OCR dari model YOLO.
+## 📊 EDA Analysis Integration
 
-| Kolom | Deskripsi |
-|-------|-----------|
-| `file_name` | Nama file gambar |
-| `text` | Teks yang diekstrak dari gambar |
-| `quality` | Kualitas gambar (clear, blur, overlap, glare) |
+Semua visualisasi di dashboard didasarkan pada hasil analisis dari EDA notebooks untuk memastikan akurasi & insights yang meaningful:
+
+### Nutrition Dataset (EDA_data_klasifikasi.ipynb)
+- **Histogram**: Sugar & sodium distribution across products
+- **Heatmap**: Correlation matrix of nutritional features (sugar, carbs, calories, sodium, fat)
+- **Grouped Bar**: Recommendation distribution by diabetes type (Normal/Type 1/Type 2)
+- **Box Plot**: Sugar content by recommendation status
+
+### OCR Quality Dataset (EDA_labeldata_ocr.ipynb)
+- **Bar Chart**: Image quality distribution (clear, blur, glare, overlap)
+- **Histogram**: Extracted text length distribution (for sequence modeling)
+- **Grouped Bar**: Quality levels per nutrition category
+- **Bar Chart**: Top 20 most frequent characters (vocabulary analysis)
+
+### Image Dataset Distribution (EDA_dataocr_croping.ipynb)
+- **Bar Chart**: Class distribution (image count per nutrient category)
+- **Scatter Plot**: Image dimensions analysis (width vs height)
+- **Histogram**: Aspect ratio distribution
+
+---
+
+## 🎯 RFM Analysis
+
+**RFM (Recency-Frequency-Monetary) adapted untuk product quality analysis:**
+
+- **Frequency**: How many user profiles/records each product appears in (augmentation multiplier)
+- **Monetary Proxy**: Recommendation rate = product quality score (% recommended vs total)
+- **Segmentation**: Products classified as High Quality (>70% recommended), Moderate (40-70%), Low (<40%)
+
+**Visualizations:**
+- Product frequency ranking (Top 15 products)
+- Recommendation rate per product (Quality proxy)
+- Category distribution with recommendation rate overlay
+- Segment distribution summary (High/Moderate/Low quality counts)
+
+### ocr_dataset_quality.csv
+
+Dataset kualitas foto OCR hasil labeling dari image cropping dataset.
+
+| Kolom       | Deskripsi                                     |
+| ----------- | --------------------------------------------- |
+| `file_name` | Nama file gambar (e.g., calories_001.png)     |
+| `text`      | Teks yang diekstrak dari gambar               |
+| `quality`   | Kualitas gambar (clear, blur, overlap, glare) |
+
+### ocr_croping_dataset/ (Folder)
+
+Folders berisi gambar hasil cropping untuk melatih model OCR. Metadata tersimpan di `ocr_dataset_quality.csv`.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** [Streamlit](https://streamlit.io)
-- **Visualisasi:** [Plotly](https://plotly.com/python/) (template `plotly_dark`)
+- **Frontend Framework:** [Streamlit](https://streamlit.io) - Interactive web app
+- **Visualisasi:** [Plotly](https://plotly.com/python/) - Professional charts with dark theme
 - **Data Processing:** [Pandas](https://pandas.pydata.org/), [NumPy](https://numpy.org/)
-- **Bahasa:** Python 3.10+
+- **Caching:** Streamlit `@st.cache_data` for performance
+- **Python:** 3.10+
 
 ---
 
-## 📸 Screenshot
+## 📚 Project Workflow
 
-<!-- Tambahkan screenshot dashboard di sini -->
-<!-- ![Overview](screenshots/overview.png) -->
-<!-- ![Nutrition Analysis](screenshots/nutrition_analysis.png) -->
-<!-- ![Recommendation Simulator](screenshots/recommendation_simulator.png) -->
-
-*Screenshot akan ditambahkan setelah deploy.*
+1. **Data Gathering & Cleaning** → `Gathering, Assessing, Cleaning_dataKlasifikasi.ipynb`
+2. **EDA & Insights** → `EDA_*.ipynb` files (quality checks, distributions, correlations)
+3. **Visualization Design** → Results integrated into `utils/eda_visualizations.py` & `utils/rfm_analysis.py`
+4. **Dashboard Implementation** → Streamlit pages (`app.py`, `pages/*.py`) using reusable utility functions
+5. **Interactive Testing** → Recommendation Simulator for user profiling
 
 ---
 
 ## 📜 Lisensi
 
-Project ini dibuat untuk keperluan riset dan edukasi.
+Dibuat oleh tim Data Science Diabites.
 
 ---
-
-Dibuat dengan ❤️ menggunakan Streamlit.
